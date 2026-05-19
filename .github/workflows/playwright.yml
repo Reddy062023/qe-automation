@@ -1,0 +1,93 @@
+# playwright.yml — GitHub Actions CI/CD workflow
+#
+# WHAT IS THIS FILE?
+# This is a workflow file. GitHub reads it and automatically runs your
+# Playwright tests in the cloud every time you push code.
+# No manual test runs needed — tests happen automatically.
+#
+# WHAT IS CI/CD?
+# CI = Continuous Integration — every code push triggers automated tests
+# CD = Continuous Delivery  — if tests pass, code can be deployed
+# Together they catch bugs before they reach production
+#
+# WHERE DOES THIS RUN?
+# NOT on your laptop. GitHub spins up a fresh Linux computer (ubuntu-latest)
+# in the cloud, installs everything, runs your tests, and reports results.
+# Your laptop can be off — it runs in GitHub's servers.
+
+# Name shown in GitHub Actions dashboard
+name: Playwright Tests — QE Automation
+
+# TRIGGERS — when does this workflow run?
+on:
+  # Run when code is pushed to main or master branch
+  push:
+    branches: [ main, master ]
+  # Run when a Pull Request is opened against main or master
+  # This is how teams catch bugs BEFORE merging code
+  pull_request:
+    branches: [ main, master ]
+  # Allow manually triggering this workflow from GitHub UI
+  # Useful for running tests on demand without pushing code
+  workflow_dispatch:
+
+# JOBS — the actual work to do
+jobs:
+
+  # JOB 1: Run all Playwright tests
+  test:
+    # Kill the job if it runs longer than 60 minutes
+    # Prevents runaway jobs from wasting GitHub Actions minutes
+    timeout-minutes: 60
+
+    # Which OS to run on — GitHub provides Ubuntu Linux for free
+    runs-on: ubuntu-latest
+
+    # STEPS — executed one by one, top to bottom
+    # If any step fails, remaining steps are skipped
+    steps:
+
+      # STEP 1: Download your code onto the GitHub runner machine
+      # Without this, the runner has no code to work with
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # STEP 2: Install Node.js on the runner machine
+      # lts/* means use the latest Long Term Support version
+      # The runner is a fresh machine — nothing is pre-installed
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      # STEP 3: Install all npm packages listed in package.json
+      # 'npm ci' is used instead of 'npm install' in CI because:
+      #   - ci = clean install — deletes node_modules first
+      #   - Uses package-lock.json for exact versions — reproducible
+      #   - Faster in CI pipelines
+      - name: Install dependencies
+        run: npm ci
+
+      # STEP 4: Install Playwright browsers (Chromium, Firefox, WebKit)
+      # --with-deps also installs Linux system dependencies needed by browsers
+      # These are NOT in node_modules — they are separate browser binaries
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      # STEP 5: Run all Playwright tests
+      # Same command you run on your laptop
+      # Exit code 0 = all passed, exit code 1 = failures → job fails
+      - name: Run Playwright tests
+        run: npx playwright test
+
+      # STEP 6: Upload the HTML report as a downloadable artifact
+      # Even if tests fail (if: ${{ !cancelled() }}), upload the report
+      # You can download it from GitHub Actions and open it locally
+      # retention-days: 30 means GitHub keeps it for 30 days then deletes
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
