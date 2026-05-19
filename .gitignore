@@ -1,7 +1,14 @@
-# Allure generated folders - regenerated on every test run
+# Node.js dependencies - never commit these
+node_modules/
+
+# Playwright generated folders
+playwright-report/
+test-results/
+
+# Allure generated folders
 allure-results/
 allure-report/
 
-# Playwright generated folders
-test-results/
-playwright-report/
+# OS files
+.DS_Store
+Thumbs.db
