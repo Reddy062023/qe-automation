@@ -1,8 +1,7 @@
+# Allure generated folders - regenerated on every test run
+allure-results/
+allure-report/
 
-# Playwright
-node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
+# Playwright generated folders
+test-results/
+playwright-report/
