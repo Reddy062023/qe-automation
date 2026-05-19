@@ -1,10 +1,11 @@
-// playwright.config.ts — central configuration for all Playwright tests
+// playwright.config.ts - central configuration for all Playwright tests
 //
 // This file controls:
 //   - Which browsers to run tests on
 //   - The base URL so tests don't need to repeat the full URL
 //   - What to capture when a test fails (screenshot, video, trace)
 //   - How many tests to run in parallel
+//   - Which reporters to use (HTML, list, Allure)
 
 import { defineConfig, devices } from '@playwright/test';
 
@@ -12,7 +13,7 @@ export default defineConfig({
   // Folder where all test files live
   testDir: './tests',
 
-  // Run tests in parallel — faster execution
+  // Run tests in parallel - faster execution
   fullyParallel: true,
 
   // Retry a failed test once before marking it as failed
@@ -21,8 +22,16 @@ export default defineConfig({
   // Number of parallel workers (browser tabs running at the same time)
   workers: 4,
 
-  // Output formats: 'html' creates a visual report, 'list' shows results in terminal
-  reporter: [['html'], ['list']],
+  // REPORTERS - multiple reporters can run at the same time
+  // html          - Playwright's built-in visual report (playwright-report folder)
+  // list          - shows test results line by line in terminal
+  // allure-playwright - generates raw data in allure-results folder
+  //                     then we run 'allure generate' to create the visual report
+  reporter: [
+    ['html'],
+    ['list'],
+    ['allure-playwright', { outputFolder: 'allure-results' }],
+  ],
 
   // These settings apply to ALL tests unless overridden
   use: {
@@ -35,7 +44,7 @@ export default defineConfig({
     // Only record video when a test fails
     video: 'retain-on-failure',
 
-    // Record a trace on the first retry — helps debug failures
+    // Record a trace on the first retry - helps debug failures
     trace: 'on-first-retry',
   },
 

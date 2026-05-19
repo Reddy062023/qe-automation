@@ -1,24 +1,23 @@
-# playwright.yml — GitHub Actions CI/CD workflow
+# playwright.yml - GitHub Actions CI/CD workflow
 #
 # WHAT IS THIS FILE?
 # This is a workflow file. GitHub reads it and automatically runs your
 # Playwright tests in the cloud every time you push code.
-# No manual test runs needed — tests happen automatically.
+# No manual test runs needed - tests happen automatically.
 #
 # WHAT IS CI/CD?
-# CI = Continuous Integration — every code push triggers automated tests
-# CD = Continuous Delivery  — if tests pass, code can be deployed
+# CI = Continuous Integration - every code push triggers automated tests
+# CD = Continuous Delivery  - if tests pass, code can be deployed
 # Together they catch bugs before they reach production
 #
 # WHERE DOES THIS RUN?
 # NOT on your laptop. GitHub spins up a fresh Linux computer (ubuntu-latest)
 # in the cloud, installs everything, runs your tests, and reports results.
-# Your laptop can be off — it runs in GitHub's servers.
+# Your laptop can be off - it runs in GitHub's servers.
 
-# Name shown in GitHub Actions dashboard
-name: Playwright Tests — QE Automation
+name: Playwright Tests - QE Automation
 
-# TRIGGERS — when does this workflow run?
+# TRIGGERS - when does this workflow run?
 on:
   # Run when code is pushed to main or master branch
   push:
@@ -27,63 +26,48 @@ on:
   # This is how teams catch bugs BEFORE merging code
   pull_request:
     branches: [ main, master ]
-  # Allow manually triggering this workflow from GitHub UI
-  # Useful for running tests on demand without pushing code
+  # Allow manually triggering from GitHub UI without pushing code
   workflow_dispatch:
 
-# JOBS — the actual work to do
 jobs:
-
-  # JOB 1: Run all Playwright tests
   test:
     # Kill the job if it runs longer than 60 minutes
-    # Prevents runaway jobs from wasting GitHub Actions minutes
     timeout-minutes: 60
 
-    # Which OS to run on — GitHub provides Ubuntu Linux for free
+    # GitHub provides Ubuntu Linux for free
     runs-on: ubuntu-latest
 
-    # STEPS — executed one by one, top to bottom
-    # If any step fails, remaining steps are skipped
-    steps:
+    # Fix Node.js 20 deprecation warning - forces Node.js 24
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-      # STEP 1: Download your code onto the GitHub runner machine
-      # Without this, the runner has no code to work with
+    steps:
+      # STEP 1 - Download your code onto the GitHub runner machine
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # STEP 2: Install Node.js on the runner machine
-      # lts/* means use the latest Long Term Support version
-      # The runner is a fresh machine — nothing is pre-installed
+      # STEP 2 - Install Node.js on the runner machine
+      # lts/* = latest Long Term Support version
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      # STEP 3: Install all npm packages listed in package.json
-      # 'npm ci' is used instead of 'npm install' in CI because:
-      #   - ci = clean install — deletes node_modules first
-      #   - Uses package-lock.json for exact versions — reproducible
-      #   - Faster in CI pipelines
+      # STEP 3 - Install npm packages from package-lock.json
+      # npm ci = clean install, faster and reproducible in CI
       - name: Install dependencies
         run: npm ci
 
-      # STEP 4: Install Playwright browsers (Chromium, Firefox, WebKit)
-      # --with-deps also installs Linux system dependencies needed by browsers
-      # These are NOT in node_modules — they are separate browser binaries
+      # STEP 4 - Install Playwright browsers + Linux system dependencies
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      # STEP 5: Run all Playwright tests
-      # Same command you run on your laptop
-      # Exit code 0 = all passed, exit code 1 = failures → job fails
+      # STEP 5 - Run all tests, same as running on your laptop
       - name: Run Playwright tests
         run: npx playwright test
 
-      # STEP 6: Upload the HTML report as a downloadable artifact
-      # Even if tests fail (if: ${{ !cancelled() }}), upload the report
-      # You can download it from GitHub Actions and open it locally
-      # retention-days: 30 means GitHub keeps it for 30 days then deletes
+      # STEP 6 - Upload HTML report so you can download and view it
+      # runs even if tests fail - !cancelled() means always upload
       - name: Upload test report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
