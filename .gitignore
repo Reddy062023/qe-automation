@@ -1,4 +1,4 @@
-# Node.js dependencies - never commit these
+# Node.js dependencies
 node_modules/
 
 # Playwright generated folders
@@ -8,6 +8,10 @@ test-results/
 # Allure generated folders
 allure-results/
 allure-report/
+
+# Karate generated folders
+karate-retail/target/
+karate-retail/.allure/
 
 # OS files
 .DS_Store
