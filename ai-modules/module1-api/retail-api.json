@@ -1,81 +1,27 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "RetailShop API",
-    "description": "A comprehensive retail e-commerce API covering products, orders, cart, users, payments and inventory",
+    "title": "Route E-Commerce API",
+    "description": "Real public e-commerce API - https://ecommerce.routemisr.com",
     "version": "1.0.0"
   },
   "servers": [
     {
-      "url": "https://api.retailshop.com/v1",
+      "url": "https://ecommerce.routemisr.com/api/v1",
       "description": "Production server"
     }
   ],
   "components": {
     "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT"
-      }
-    },
-    "schemas": {
-      "Product": {
-        "type": "object",
-        "required": ["name", "price", "category"],
-        "properties": {
-          "id": { "type": "integer" },
-          "name": { "type": "string" },
-          "description": { "type": "string" },
-          "price": { "type": "number" },
-          "category": { "type": "string" },
-          "stock": { "type": "integer" },
-          "rating": { "type": "number" }
-        }
-      },
-      "Order": {
-        "type": "object",
-        "required": ["items", "deliveryAddress", "paymentMethodId"],
-        "properties": {
-          "id": { "type": "integer" },
-          "items": { "type": "array" },
-          "totalAmount": { "type": "number" },
-          "status": { "type": "string", "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled"] },
-          "deliveryAddress": { "type": "string" },
-          "paymentMethodId": { "type": "integer" }
-        }
-      },
-      "User": {
-        "type": "object",
-        "required": ["email", "password", "firstName", "lastName"],
-        "properties": {
-          "id": { "type": "integer" },
-          "email": { "type": "string" },
-          "firstName": { "type": "string" },
-          "lastName": { "type": "string" },
-          "phone": { "type": "string" }
-        }
-      },
-      "Cart": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "integer" },
-          "items": { "type": "array" },
-          "totalItems": { "type": "integer" },
-          "totalAmount": { "type": "number" }
-        }
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer" },
-          "message": { "type": "string" }
-        }
+      "tokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "token"
       }
     }
   },
   "paths": {
-    "/auth/register": {
+    "/auth/signup": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Register a new user account",
@@ -83,18 +29,28 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/User" }
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password", "rePassword", "phone"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "password": { "type": "string" },
+                  "rePassword": { "type": "string" },
+                  "phone": { "type": "string" }
+                }
+              }
             }
           }
         },
         "responses": {
           "201": { "description": "User registered successfully" },
-          "400": { "description": "Invalid input data" },
+          "400": { "description": "Invalid input or missing required fields" },
           "409": { "description": "Email already exists" }
         }
       }
     },
-    "/auth/login": {
+    "/auth/signin": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Login and get JWT token",
@@ -114,31 +70,34 @@
           }
         },
         "responses": {
-          "200": { "description": "Login successful, returns JWT token" },
+          "200": { "description": "Login successful returns JWT token" },
           "400": { "description": "Missing email or password" },
-          "401": { "description": "Invalid credentials" }
+          "401": { "description": "Incorrect email or password" }
         }
       }
     },
-    "/auth/logout": {
+    "/auth/forgotPasswords": {
       "post": {
         "tags": ["Authentication"],
-        "summary": "Logout and invalidate token",
-        "security": [{ "bearerAuth": [] }],
+        "summary": "Send password reset email",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Logged out successfully" },
-          "401": { "description": "Unauthorized - invalid or expired token" }
-        }
-      }
-    },
-    "/auth/refresh": {
-      "post": {
-        "tags": ["Authentication"],
-        "summary": "Refresh expired JWT token",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "New token returned" },
-          "401": { "description": "Invalid refresh token" }
+          "200": { "description": "Reset email sent successfully" },
+          "400": { "description": "Missing email" },
+          "404": { "description": "No user found with this email" }
         }
       }
     },
@@ -147,472 +106,90 @@
         "tags": ["Products"],
         "summary": "Get all products with optional filters",
         "parameters": [
-          { "name": "category", "in": "query", "schema": { "type": "string" } },
-          { "name": "minPrice", "in": "query", "schema": { "type": "number" } },
-          { "name": "maxPrice", "in": "query", "schema": { "type": "number" } },
           { "name": "page", "in": "query", "schema": { "type": "integer" } },
-          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "sort", "in": "query", "schema": { "type": "string" } },
+          { "name": "keyword", "in": "query", "schema": { "type": "string" } }
         ],
         "responses": {
           "200": { "description": "List of products returned" },
           "400": { "description": "Invalid filter parameters" }
-        }
-      },
-      "post": {
-        "tags": ["Products"],
-        "summary": "Create a new product (admin only)",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Product" }
-            }
-          }
-        },
-        "responses": {
-          "201": { "description": "Product created successfully" },
-          "400": { "description": "Invalid product data" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden - admin access required" }
         }
       }
     },
     "/products/{id}": {
       "get": {
         "tags": ["Products"],
-        "summary": "Get product by ID",
+        "summary": "Get product by MongoDB ID",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
           "200": { "description": "Product details returned" },
-          "404": { "description": "Product not found" }
-        }
-      },
-      "put": {
-        "tags": ["Products"],
-        "summary": "Update product (admin only)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Product" }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Product updated successfully" },
-          "400": { "description": "Invalid data" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "404": { "description": "Product not found" }
-        }
-      },
-      "delete": {
-        "tags": ["Products"],
-        "summary": "Delete product (admin only)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": { "description": "Product deleted" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
+          "400": { "description": "Invalid ID format" },
           "404": { "description": "Product not found" }
         }
       }
     },
-    "/products/search": {
+    "/categories": {
       "get": {
-        "tags": ["Products"],
-        "summary": "Search products by keyword",
-        "parameters": [
-          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }
-        ],
+        "tags": ["Categories"],
+        "summary": "Get all categories",
         "responses": {
-          "200": { "description": "Search results returned" },
-          "400": { "description": "Missing search query" }
+          "200": { "description": "List of categories returned" }
         }
       }
     },
-    "/products/{id}/reviews": {
+    "/categories/{id}": {
       "get": {
-        "tags": ["Products"],
-        "summary": "Get reviews for a product",
+        "tags": ["Categories"],
+        "summary": "Get category by ID",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Reviews returned" },
-          "404": { "description": "Product not found" }
+          "200": { "description": "Category returned" },
+          "404": { "description": "Category not found" }
         }
-      },
-      "post": {
-        "tags": ["Products"],
-        "summary": "Add a review for a product",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["rating", "comment"],
-                "properties": {
-                  "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
-                  "comment": { "type": "string" }
-                }
-              }
-            }
-          }
-        },
+      }
+    },
+    "/brands": {
+      "get": {
+        "tags": ["Brands"],
+        "summary": "Get all brands",
         "responses": {
-          "201": { "description": "Review added" },
-          "400": { "description": "Invalid rating or comment" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Product not found" }
+          "200": { "description": "List of brands returned" }
+        }
+      }
+    },
+    "/brands/{id}": {
+      "get": {
+        "tags": ["Brands"],
+        "summary": "Get brand by ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Brand returned" },
+          "404": { "description": "Brand not found" }
         }
       }
     },
     "/cart": {
       "get": {
         "tags": ["Cart"],
-        "summary": "Get current user cart",
-        "security": [{ "bearerAuth": [] }],
+        "summary": "Get logged in user cart",
+        "security": [{ "tokenAuth": [] }],
         "responses": {
           "200": { "description": "Cart returned" },
-          "401": { "description": "Unauthorized" }
-        }
-      },
-      "delete": {
-        "tags": ["Cart"],
-        "summary": "Clear entire cart",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "Cart cleared" },
-          "401": { "description": "Unauthorized" }
-        }
-      }
-    },
-    "/cart/items": {
-      "post": {
-        "tags": ["Cart"],
-        "summary": "Add item to cart",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["productId", "quantity"],
-                "properties": {
-                  "productId": { "type": "integer" },
-                  "quantity": { "type": "integer", "minimum": 1 }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": { "description": "Item added to cart" },
-          "400": { "description": "Invalid product or quantity" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Product not found" },
-          "422": { "description": "Insufficient stock" }
-        }
-      }
-    },
-    "/cart/items/{itemId}": {
-      "put": {
-        "tags": ["Cart"],
-        "summary": "Update cart item quantity",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "itemId", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["quantity"],
-                "properties": {
-                  "quantity": { "type": "integer", "minimum": 1 }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Cart item updated" },
-          "400": { "description": "Invalid quantity" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Cart item not found" }
-        }
-      },
-      "delete": {
-        "tags": ["Cart"],
-        "summary": "Remove item from cart",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "itemId", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": { "description": "Item removed from cart" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Cart item not found" }
-        }
-      }
-    },
-    "/cart/coupon": {
-      "post": {
-        "tags": ["Cart"],
-        "summary": "Apply coupon code to cart",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["couponCode"],
-                "properties": {
-                  "couponCode": { "type": "string" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Coupon applied successfully" },
-          "400": { "description": "Invalid or expired coupon" },
-          "401": { "description": "Unauthorized" }
-        }
-      }
-    },
-    "/orders": {
-      "post": {
-        "tags": ["Orders"],
-        "summary": "Place a new order",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Order" }
-            }
-          }
-        },
-        "responses": {
-          "201": { "description": "Order placed successfully" },
-          "400": { "description": "Invalid order data" },
-          "401": { "description": "Unauthorized" },
-          "422": { "description": "Insufficient stock or invalid payment" }
-        }
-      },
-      "get": {
-        "tags": ["Orders"],
-        "summary": "Get all orders for current user",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "Orders list returned" },
-          "401": { "description": "Unauthorized" }
-        }
-      }
-    },
-    "/orders/{id}": {
-      "get": {
-        "tags": ["Orders"],
-        "summary": "Get order by ID",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": { "description": "Order details returned" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden - not your order" },
-          "404": { "description": "Order not found" }
-        }
-      }
-    },
-    "/orders/{id}/cancel": {
-      "put": {
-        "tags": ["Orders"],
-        "summary": "Cancel an order",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": { "description": "Order cancelled" },
-          "400": { "description": "Order cannot be cancelled - already shipped" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Order not found" }
-        }
-      }
-    },
-    "/orders/{id}/tracking": {
-      "get": {
-        "tags": ["Orders"],
-        "summary": "Track order shipment",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": { "description": "Tracking info returned" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Order not found" }
-        }
-      }
-    },
-    "/users/me": {
-      "get": {
-        "tags": ["Users"],
-        "summary": "Get current user profile",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "User profile returned" },
-          "401": { "description": "Unauthorized" }
-        }
-      },
-      "put": {
-        "tags": ["Users"],
-        "summary": "Update current user profile",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/User" }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Profile updated" },
-          "400": { "description": "Invalid data" },
-          "401": { "description": "Unauthorized" }
-        }
-      },
-      "delete": {
-        "tags": ["Users"],
-        "summary": "Delete current user account",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "Account deleted" },
-          "401": { "description": "Unauthorized" }
-        }
-      }
-    },
-    "/users/me/password": {
-      "put": {
-        "tags": ["Users"],
-        "summary": "Change user password",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["currentPassword", "newPassword"],
-                "properties": {
-                  "currentPassword": { "type": "string" },
-                  "newPassword": { "type": "string", "minLength": 8 }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Password changed" },
-          "400": { "description": "Invalid password format" },
-          "401": { "description": "Current password incorrect" }
-        }
-      }
-    },
-    "/payments/methods": {
-      "get": {
-        "tags": ["Payments"],
-        "summary": "Get saved payment methods",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "Payment methods returned" },
-          "401": { "description": "Unauthorized" }
+          "401": { "description": "Unauthorized - token required" },
+          "404": { "description": "No cart found for this user" }
         }
       },
       "post": {
-        "tags": ["Payments"],
-        "summary": "Add new payment method",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["cardNumber", "expiryDate", "cvv"],
-                "properties": {
-                  "cardNumber": { "type": "string" },
-                  "expiryDate": { "type": "string" },
-                  "cvv": { "type": "string" },
-                  "cardHolderName": { "type": "string" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": { "description": "Payment method added" },
-          "400": { "description": "Invalid card details" },
-          "401": { "description": "Unauthorized" },
-          "422": { "description": "Card declined" }
-        }
-      }
-    },
-    "/payments/methods/{id}": {
-      "delete": {
-        "tags": ["Payments"],
-        "summary": "Remove a saved payment method",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": { "description": "Payment method removed" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Payment method not found" }
-        }
-      }
-    },
-    "/wishlist": {
-      "get": {
-        "tags": ["Wishlist"],
-        "summary": "Get user wishlist",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "Wishlist returned" },
-          "401": { "description": "Unauthorized" }
-        }
-      }
-    },
-    "/wishlist/items": {
-      "post": {
-        "tags": ["Wishlist"],
-        "summary": "Add product to wishlist",
-        "security": [{ "bearerAuth": [] }],
+        "tags": ["Cart"],
+        "summary": "Add product to cart",
+        "security": [{ "tokenAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -621,67 +198,35 @@
                 "type": "object",
                 "required": ["productId"],
                 "properties": {
-                  "productId": { "type": "integer" }
+                  "productId": { "type": "string" }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Product added to wishlist" },
+          "200": { "description": "Product added to cart" },
           "400": { "description": "Invalid product ID" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Product not found" },
-          "409": { "description": "Product already in wishlist" }
+          "401": { "description": "Unauthorized - token required" }
         }
-      }
-    },
-    "/wishlist/items/{id}": {
+      },
       "delete": {
-        "tags": ["Wishlist"],
-        "summary": "Remove product from wishlist",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
+        "tags": ["Cart"],
+        "summary": "Clear all cart items",
+        "security": [{ "tokenAuth": [] }],
         "responses": {
-          "200": { "description": "Product removed from wishlist" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Item not found in wishlist" }
-        }
-      }
-    },
-    "/recommendations": {
-      "get": {
-        "tags": ["Recommendations"],
-        "summary": "Get personalized product recommendations",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "Recommendations returned" },
+          "204": { "description": "Cart cleared" },
           "401": { "description": "Unauthorized" }
         }
       }
     },
-    "/inventory/{productId}": {
-      "get": {
-        "tags": ["Inventory"],
-        "summary": "Get stock availability for a product",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "productId", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": { "description": "Inventory level returned" },
-          "401": { "description": "Unauthorized" },
-          "404": { "description": "Product not found" }
-        }
-      },
+    "/cart/{itemId}": {
       "put": {
-        "tags": ["Inventory"],
-        "summary": "Update stock level (admin only)",
-        "security": [{ "bearerAuth": [] }],
+        "tags": ["Cart"],
+        "summary": "Update cart item quantity",
+        "security": [{ "tokenAuth": [] }],
         "parameters": [
-          { "name": "productId", "in": "path", "required": true, "schema": { "type": "integer" } }
+          { "name": "itemId", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "requestBody": {
           "required": true,
@@ -689,20 +234,187 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["stock"],
+                "required": ["count"],
                 "properties": {
-                  "stock": { "type": "integer", "minimum": 0 }
+                  "count": { "type": "integer" }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Stock updated" },
-          "400": { "description": "Invalid stock value" },
+          "200": { "description": "Cart item updated" },
+          "400": { "description": "Invalid count" },
           "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden - admin only" },
-          "404": { "description": "Product not found" }
+          "404": { "description": "Item not found in cart" }
+        }
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Remove specific item from cart",
+        "security": [{ "tokenAuth": [] }],
+        "parameters": [
+          { "name": "itemId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Item removed from cart" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Item not found" }
+        }
+      }
+    },
+    "/orders/checkout-session/{cartId}": {
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Create checkout session for online payment",
+        "security": [{ "tokenAuth": [] }],
+        "parameters": [
+          { "name": "cartId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["shippingAddress"],
+                "properties": {
+                  "shippingAddress": {
+                    "type": "object",
+                    "properties": {
+                      "details": { "type": "string" },
+                      "phone": { "type": "string" },
+                      "city": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Checkout session created" },
+          "400": { "description": "Invalid cart or shipping address" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Cart not found" }
+        }
+      }
+    },
+    "/orders/user/{userId}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get all orders for a user",
+        "security": [{ "tokenAuth": [] }],
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Orders returned" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "No orders found" }
+        }
+      }
+    },
+    "/wishlist": {
+      "get": {
+        "tags": ["Wishlist"],
+        "summary": "Get logged in user wishlist",
+        "security": [{ "tokenAuth": [] }],
+        "responses": {
+          "200": { "description": "Wishlist returned" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Wishlist"],
+        "summary": "Add product to wishlist",
+        "security": [{ "tokenAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["productId"],
+                "properties": {
+                  "productId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Product added to wishlist" },
+          "400": { "description": "Invalid product ID" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/wishlist/{productId}": {
+      "delete": {
+        "tags": ["Wishlist"],
+        "summary": "Remove product from wishlist",
+        "security": [{ "tokenAuth": [] }],
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Product removed from wishlist" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Product not found in wishlist" }
+        }
+      }
+    },
+    "/addresses": {
+      "get": {
+        "tags": ["Addresses"],
+        "summary": "Get logged in user addresses",
+        "security": [{ "tokenAuth": [] }],
+        "responses": {
+          "200": { "description": "Addresses returned" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Addresses"],
+        "summary": "Add new address",
+        "security": [{ "tokenAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["details", "phone", "city"],
+                "properties": {
+                  "details": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "city": { "type": "string" },
+                  "postalCode": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Address added" },
+          "400": { "description": "Invalid address data" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/addresses/{addressId}": {
+      "delete": {
+        "tags": ["Addresses"],
+        "summary": "Remove address",
+        "security": [{ "tokenAuth": [] }],
+        "parameters": [
+          { "name": "addressId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Address removed" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Address not found" }
         }
       }
     }

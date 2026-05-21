@@ -1,149 +1,87 @@
-# auth.feature - Karate API tests for Authentication endpoints
-#
-# WHAT IS A FEATURE FILE?
-# A feature file contains tests written in Gherkin syntax.
-# Gherkin uses plain English keywords: Feature, Background, Scenario, Given, When, Then, And
-# Anyone can read these tests - developers, testers, business analysts, clients
-#
-# WHAT IS GHERKIN?
-# Gherkin is a language designed to describe software behaviour
-# without detailing how that behaviour is implemented.
-# It bridges the gap between business requirements and technical tests.
-#
-# KARATE SPECIFIC:
-# Unlike regular Cucumber, Karate has HTTP built in.
-# You do not need step definitions (no glue code).
-# Karate interprets Given/When/Then directly as HTTP operations.
+# auth.feature - Karate API tests for Authentication
+# Using Route API - real public e-commerce API
+# Base URL: https://ecommerce.routemisr.com/api/v1
+# Test account: qelead.test2026@gmail.com / QeTest@2026
 
 Feature: RetailShop Authentication API
-  # Feature = the name of what we are testing
-  # One feature file = one business feature area
 
   Background:
-    # Background runs before EVERY Scenario in this file
-    # Like beforeEach in Playwright or @Before in JUnit
-    # Perfect for setting up common config like base URL
-    * url 'https://jsonplaceholder.typicode.com'
-    # NOTE: We use jsonplaceholder.typicode.com because it is free and always available
-    # In a real project this would be: https://api.retailshop.com/v1
+    * url 'https://ecommerce.routemisr.com/api/v1'
+    * def testEmail = 'qelead.test2026@gmail.com'
+    * def testPassword = 'QeTest@2026'
 
   # ─────────────────────────────────────────────────────────────────
-  # SCENARIO 1: Happy Path - Valid login
+  # SCENARIO 1: Valid login returns JWT token
   # ─────────────────────────────────────────────────────────────────
-  Scenario: Valid credentials return 200 with user data
-    # GIVEN = setup - what endpoint we are hitting
-    Given path '/users/1'
-
-    # WHEN = action - what HTTP method to use
-    When method GET
-
-    # THEN = assertion - what we expect back
-    Then status 200
-
-    # AND = more assertions
-    And match response.id == 1
-    And match response.name != null
-    And match response.email != null
-
-    # WHAT IS match?
-    # match is Karate's assertion keyword
-    # match response.id == 1       checks exact value
-    # match response.name != null  checks field exists and is not null
-    # match response contains { id: 1 }  checks partial match
-
-  # ─────────────────────────────────────────────────────────────────
-  # SCENARIO 2: Get all users - List endpoint
-  # ─────────────────────────────────────────────────────────────────
-  Scenario: Get all users returns array with 10 users
-    Given path '/users'
-    When method GET
-    Then status 200
-
-    # match each means every item in the array must match this schema
-    # '#number' means the field must be a number
-    # '#string' means the field must be a string
-    # '#notnull' means the field must not be null
-    And match each response == { id: '#number', name: '#string', username: '#string', email: '#string', address: '#object', phone: '#string', website: '#string', company: '#object' }
-
-    # Check array has items
-    And assert response.length == 10
-
-  # ─────────────────────────────────────────────────────────────────
-  # SCENARIO 3: Create a new user - POST request
-  # ─────────────────────────────────────────────────────────────────
-  Scenario: Create new user returns 201 with created user data
-    # Define request body as JSON
-    Given path '/users'
-    And request
-    """
-    {
-      "name": "QE Lead Automation",
-      "username": "qelead",
-      "email": "qelead@retailshop.com",
-      "phone": "1-800-QE-LEAD"
-    }
-    """
-    # WHAT IS """ """ ?
-    # Triple quotes in Karate = multi-line JSON body
-    # This is how you send request body in POST/PUT requests
-    # Much cleaner than putting it all on one line
-
+  Scenario: Valid credentials return 200 with JWT token
+    Given path '/auth/signin'
+    And request { "email": "#(testEmail)", "password": "#(testPassword)" }
     When method POST
-    Then status 201
-
-    # Verify the response contains what we sent
-    And match response.name == 'QE Lead Automation'
-    And match response.email == 'qelead@retailshop.com'
-
-    # jsonplaceholder returns a fake id for new resources
-    And match response.id != null
-
-  # ─────────────────────────────────────────────────────────────────
-  # SCENARIO 4: Update a user - PUT request
-  # ─────────────────────────────────────────────────────────────────
-  Scenario: Update user returns 200 with updated data
-    Given path '/users/1'
-    And request
-    """
-    {
-      "name": "Updated QE Lead",
-      "email": "updated@retailshop.com"
-    }
-    """
-    When method PUT
     Then status 200
-    And match response.name == 'Updated QE Lead'
+    And match response.message == 'success'
+    And match response.token != null
+    And match response.token == '#string'
+    And match response.user.email == '#(testEmail)'
 
   # ─────────────────────────────────────────────────────────────────
-  # SCENARIO 5: Delete a user - DELETE request
+  # SCENARIO 2: Wrong password returns 401
   # ─────────────────────────────────────────────────────────────────
-  Scenario: Delete user returns 200
-    Given path '/users/1'
-    When method DELETE
+  Scenario: Wrong password returns error message
+    Given path '/auth/signin'
+    And request { "email": "#(testEmail)", "password": "WrongPassword123" }
+    When method POST
+    Then status 401
+    And match response.message == 'Incorrect email or password'
+
+  # ─────────────────────────────────────────────────────────────────
+  # SCENARIO 3: Missing password returns 400
+  # ─────────────────────────────────────────────────────────────────
+  Scenario: Missing password returns 400
+    Given path '/auth/signin'
+    And request { "email": "#(testEmail)" }
+    When method POST
+    Then status 400
+
+  # ─────────────────────────────────────────────────────────────────
+  # SCENARIO 4: Missing email returns 400
+  # ─────────────────────────────────────────────────────────────────
+  Scenario: Missing email returns 400
+    Given path '/auth/signin'
+    And request { "password": "#(testPassword)" }
+    When method POST
+    Then status 400
+
+  # ─────────────────────────────────────────────────────────────────
+  # SCENARIO 5: Non-existent email returns 401
+  # ─────────────────────────────────────────────────────────────────
+  Scenario: Non-existent email returns error
+    Given path '/auth/signin'
+    And request { "email": "nobody@nowhere.com", "password": "Test@1234" }
+    When method POST
+    Then status 401
+    And match response.message == 'Incorrect email or password'
+
+  # ─────────────────────────────────────────────────────────────────
+  # SCENARIO 6: Store token and use in authenticated request
+  # ─────────────────────────────────────────────────────────────────
+  Scenario: Login then use token to access protected endpoint
+    # Step 1 - Login and get token
+    Given path '/auth/signin'
+    And request { "email": "#(testEmail)", "password": "#(testPassword)" }
+    When method POST
     Then status 200
+    * def authToken = response.token
 
-  # ─────────────────────────────────────────────────────────────────
-  # SCENARIO 6: User not found - 404 error scenario
-  # ─────────────────────────────────────────────────────────────────
-  Scenario: Get non-existent user returns 404
-    Given path '/users/999'
+    # Step 2 - Use token to access cart (protected endpoint)
+    Given path '/cart'
+    And header token = authToken
     When method GET
-    # jsonplaceholder returns 404 for non-existent resources
-    Then status 404
-
-  # ─────────────────────────────────────────────────────────────────
-  # SCENARIO 7: Using variables in Karate
-  # ─────────────────────────────────────────────────────────────────
-  Scenario: Demonstrate Karate variables
-    # WHAT ARE KARATE VARIABLES?
-    # * def = define a variable
-    # Variables can be used anywhere with #(variableName) syntax
-
-    * def userId = 2
-    * def expectedEmail = 'Shanna@melissa.tv'
-
-    Given path '/users/' + userId
-    When method GET
     Then status 200
-    And match response.id == '#(userId)'
-    And match response.email == '#(expectedEmail)'
+
+  # ─────────────────────────────────────────────────────────────────
+  # SCENARIO 7: Access protected endpoint without token returns 401
+  # ─────────────────────────────────────────────────────────────────
+  Scenario: Access protected endpoint without token returns 401
+    Given path '/cart'
+    When method GET
+    Then status 401

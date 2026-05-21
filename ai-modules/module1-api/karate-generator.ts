@@ -1,7 +1,7 @@
 // karate-generator.ts - AI-Powered Karate Feature File Generator
 //
 // WHAT THIS DOES:
-// Reads retail-api.json (52 endpoints)
+// Reads retail-api.json (36 endpoints)
 // Groups endpoints by feature area
 // Sends each group to Claude API
 // Claude writes Karate .feature files
@@ -12,10 +12,9 @@
 // cd ai-modules/module1-api
 // npx tsx karate-generator.ts
 //
-// WHY KARATE FORMAT?
-// Output is Gherkin .feature files — same syntax you just learned
-// Given/When/Then, headers, params, match assertions
-// Ready to run with: mvn test
+// REAL API: https://ecommerce.routemisr.com/api/v1
+// Test account: qelead.test2026@gmail.com / QeTest@2026
+// MongoDB IDs are hex strings like: 507f1f77bcf86cd799439011
 
 import Anthropic from '@anthropic-ai/sdk';
 import * as fs from 'fs';
@@ -26,10 +25,11 @@ const CONFIG = {
   model: 'claude-haiku-4-5-20251001',
   maxTokens: 4000,
   specFile: 'retail-api.json',
-  // Output goes directly into Karate project
   outputDir: path.join('..', '..', 'karate-retail', 'src', 'test', 'resources', 'features', 'ai-generated'),
   coverageThreshold: 80,
-  baseUrl: 'https://api.retailshop.com/v1',
+  baseUrl: 'https://ecommerce.routemisr.com/api/v1',
+  testEmail: 'qelead.test2026@gmail.com',
+  testPassword: 'QeTest@2026',
 };
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
@@ -91,7 +91,6 @@ function parseSpec(specPath: string): Endpoint[] {
         }
       }
 
-      // Extract required fields from request body schema
       const requiredFields: string[] = [];
       const rb = op.requestBody as Record<string, unknown>;
       if (rb?.content) {
@@ -137,8 +136,7 @@ function groupByTag(endpoints: Endpoint[]): Map<string, Endpoint[]> {
   return groups;
 }
 
-// ─── STEP 3: BUILD KARATE-SPECIFIC PROMPT ──────────────────────────────────
-// This is the key function — prompt engineering for Karate output
+// ─── STEP 3: BUILD KARATE PROMPT ───────────────────────────────────────────
 function buildKaratePrompt(tag: string, endpoints: Endpoint[]): string {
   const endpointDetails = endpoints.map(ep => {
     const params = ep.parameters.length > 0
@@ -165,53 +163,64 @@ Response codes:
 ${responses}`;
   }).join('\n---');
 
-  return `Generate Karate Framework feature file for the "${tag}" feature of a retail API.
+  return `Generate Karate Framework feature file for the "${tag}" feature of a retail e-commerce API.
 
 BASE URL: ${CONFIG.baseUrl}
+TEST ACCOUNT EMAIL: ${CONFIG.testEmail}
+TEST ACCOUNT PASSWORD: ${CONFIG.testPassword}
 
-ENDPOINTS:
+ENDPOINTS TO TEST:
 ${endpointDetails}
 
-REQUIREMENTS - Generate Karate Gherkin scenarios covering ALL of:
-
-1. HAPPY PATH - valid request returns success status
-2. AUTHENTICATION scenarios (if auth required):
-   - Valid token: And header Authorization = 'Bearer valid-token'
-   - No token: omit Authorization header, expect 401
-   - Invalid token: And header Authorization = 'Bearer invalid-token', expect 401
+REQUIREMENTS - generate Karate scenarios covering ALL of:
+1. HAPPY PATH - valid request returns expected success status
+2. AUTHENTICATION - for protected endpoints:
+   - With valid token: And header token = authToken
+   - Without token: omit header, expect 401
+   - With invalid token: And header token = 'invalid-token', expect 401
 3. EVERY documented error response code
 4. MISSING REQUIRED FIELDS - omit each required field, expect 400
-5. INVALID DATA - send wrong types (string for number), expect 400/422
-6. PATH PARAMETERS - test with valid ID, invalid ID (999999), non-numeric
-7. QUERY PARAMETERS - test with valid values, invalid values, missing required
+5. INVALID DATA TYPES - send wrong types, expect 400 or 422
+6. BOUNDARY VALUES - empty strings, very long strings, negative numbers
 
-KARATE SYNTAX RULES - follow exactly:
-- Feature name at top: Feature: RetailShop ${tag} API
-- Background with URL: Background: * url '${CONFIG.baseUrl}'
-- Define auth token in Background: * def authToken = 'Bearer test-token-12345'
-- Path: Given path '/endpoint/path'
+CRITICAL KARATE RULES - follow exactly:
+- Feature name: Feature: RetailShop ${tag} API
+- Background must set URL: * url '${CONFIG.baseUrl}'
+- Define test credentials in Background:
+  * def testEmail = '${CONFIG.testEmail}'
+  * def testPassword = '${CONFIG.testPassword}'
+- For auth token - login first then store token:
+  * def loginResponse = call read('classpath:features/auth.feature@login')
+  OR do inline login in Background:
+  Given path '/auth/signin'
+  And request { "email": "#(testEmail)", "password": "#(testPassword)" }
+  When method POST
+  * def authToken = response.token
+- Use token in header: And header token = authToken
 - Path with variable: Given path '/products/' + productId
-- Query param: And param category = 'electronics'
-- Header: And header Authorization = authToken
+- Query param: And param page = 1
 - Request body: And request { "field": "value" }
-- Multi-line body: And request """ { } """
 - Method: When method POST
-- Status: Then status 201
-- Simple match: And match response.field == 'value'
-- Null check: And match response.id != null
-- Type check: And match response.id == '#number'
-- Array check: And match each response contains { id: '#number' }
-- Variable: * def productId = 1
-- Store response: * def createdId = response.id
-- Comments: # explain why this test exists
+- Status check: Then status 200
+- Field match: And match response.data != null
+- Array check: And match response.data == '#[]'
+- Number check: And match response.data == '#number'
+
+MONGODB ID RULES - THIS IS CRITICAL:
+- This API uses MongoDB - ALL IDs are 24-character hex strings
+- ALWAYS wrap IDs in single quotes: * def productId = '507f1f77bcf86cd799439011'
+- For invalid ID use: '000000000000000000000000' (24 zeros)
+- For non-existent ID use: '507f1f77bcf86cd799439099'
+- NEVER use plain integers as IDs like 1, 999, 999999
+- NEVER write: * def productId = 507f1f77bcf86cd799439011 (missing quotes = syntax error)
 
 IMPORTANT:
 - Return ONLY valid Karate .feature file content
-- No markdown code blocks
-- No TypeScript or JavaScript
+- No markdown code blocks, no TypeScript, no JavaScript
 - Start directly with: Feature: RetailShop ${tag} API
 - Use realistic retail test data
-- Each Scenario must be independent`;
+- Each Scenario must be completely independent
+- Add comments explaining why each test exists`;
 }
 
 // ─── STEP 4: CALL CLAUDE API ────────────────────────────────────────────────
@@ -225,10 +234,12 @@ async function generateKarateFeature(
   const message = await client.messages.create({
     model: CONFIG.model,
     max_tokens: CONFIG.maxTokens,
-    system: `You are a senior QA automation engineer expert in Karate Framework.
+    system: `You are a senior QA automation engineer expert in Karate Framework 1.4.0.
 You write production-quality Karate .feature files.
 Your output is ONLY valid Karate Gherkin syntax — no markdown, no TypeScript.
 You always cover: happy path, auth scenarios, every error code, missing fields, boundary values.
+CRITICAL: All MongoDB IDs must be in single quotes. NEVER write a bare hex string without quotes.
+CRITICAL: Use header token = authToken (not Authorization header) for this API.
 Start output directly with: Feature:`,
     messages: [
       { role: 'user', content: buildKaratePrompt(tag, endpoints) }
@@ -249,9 +260,9 @@ Start output directly with: Feature:`,
 // ─── STEP 5: CALCULATE COVERAGE ────────────────────────────────────────────
 function calculateCoverage(tag: string, endpoints: Endpoint[], code: string): CoverageData {
   const allCodes = [...new Set(endpoints.flatMap(ep => Object.keys(ep.responses)))];
-  const coveredCodes = allCodes.filter(code => code.match(/\d+/) && code.includes(code));
+  const coveredCodes = allCodes.filter(c => code.includes(c));
   const authRequired = endpoints.some(ep => ep.requiresAuth);
-  const authTested = code.includes('401') || code.includes('Unauthorized');
+  const authTested = code.includes('401');
   const scenariosGenerated = (code.match(/Scenario:/g) || []).length;
   const coverageScore = Math.min(100, Math.round((scenariosGenerated / (endpoints.length * 4)) * 100));
 
@@ -261,15 +272,14 @@ function calculateCoverage(tag: string, endpoints: Endpoint[], code: string): Co
 // ─── STEP 6: SAVE FEATURE FILE ──────────────────────────────────────────────
 function saveFeatureFile(tag: string, content: string): void {
   fs.mkdirSync(CONFIG.outputDir, { recursive: true });
-
   const filename = `${tag.toLowerCase().replace(/\s+/g, '-')}.feature`;
   const filePath = path.join(CONFIG.outputDir, filename);
 
   const fileContent = `# ${filename} - AUTO-GENERATED by karate-generator.ts
 # Generated: ${new Date().toISOString()}
 # Feature: ${tag}
+# API: ${CONFIG.baseUrl}
 # DO NOT EDIT - regenerate using: npx tsx ai-modules/module1-api/karate-generator.ts
-# Review scenarios before running against real API
 
 ${content}`;
 
@@ -320,7 +330,7 @@ function generateReport(coverageData: CoverageData[], totalCost: number): void {
 <body>
   <div class="header">
     <h1>Karate AI Test Generation Report</h1>
-    <p>RetailShop API — Generated by karate-generator.ts using Claude API</p>
+    <p>RetailShop API — ${CONFIG.baseUrl}</p>
     <p>Generated: ${new Date().toLocaleString()}</p>
   </div>
   <div class="summary">
@@ -359,6 +369,7 @@ async function main() {
   console.log('═══════════════════════════════════════════════════');
   console.log('  Karate AI Feature File Generator');
   console.log('  Reads retail-api.json → Claude API → .feature files');
+  console.log(`  Target API: ${CONFIG.baseUrl}`);
   console.log('═══════════════════════════════════════════════════');
 
   const client = new Anthropic();
@@ -375,7 +386,7 @@ async function main() {
     const generated = await generateKarateFeature(client, tag, featureEndpoints);
     const coverage = calculateCoverage(tag, featureEndpoints, generated);
     coverageResults.push(coverage);
-    totalCost += 0.003;
+    totalCost += parseFloat(((featureEndpoints.length * 325 * 0.00025 + 4000 * 0.00125) / 1000).toFixed(4));
     saveFeatureFile(tag, generated);
     console.log(`   Scenarios: ${coverage.scenariosGenerated} | Coverage: ${coverage.coverageScore}%`);
   }
