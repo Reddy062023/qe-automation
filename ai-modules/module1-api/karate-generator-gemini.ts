@@ -1,14 +1,11 @@
 // karate-generator.ts - AI-Powered Karate Feature File Generator
-// Reads retail-api.json → Claude API → .feature files
-// HOW TO RUN: cd ai-modules/module1-api && npx tsx karate-generator.ts
+// Now using Google Gemini FREE API instead of Claude
 
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const CONFIG = {
-  model: 'claude-haiku-4-5-20251001',
-  maxTokens: 4000,
   specFile: 'retail-api.json',
   outputDir: path.join('..', '..', 'karate-retail', 'src', 'test', 'resources', 'features', 'ai-generated'),
   coverageThreshold: 80,
@@ -40,8 +37,6 @@ interface CoverageData {
   tag: string;
   totalEndpoints: number;
   scenariosGenerated: number;
-  responseCodesCovered: string[];
-  authTested: boolean;
   coverageScore: number;
 }
 
@@ -143,208 +138,121 @@ ${responses}`;
   return `Generate Karate Framework feature file for the "${tag}" feature of a retail e-commerce API.
 
 BASE URL: ${CONFIG.baseUrl}
-TEST ACCOUNT EMAIL: ${CONFIG.testEmail}
-TEST ACCOUNT PASSWORD: ${CONFIG.testPassword}
+TEST EMAIL: ${CONFIG.testEmail}
+TEST PASSWORD: ${CONFIG.testPassword}
 
 ENDPOINTS TO TEST:
 ${endpointDetails}
 
-REQUIREMENTS - generate Karate scenarios covering ALL of:
+REQUIREMENTS - generate scenarios covering:
 1. HAPPY PATH - valid request returns expected success status
-2. AUTHENTICATION - for protected endpoints:
-   - With valid token: And header token = authToken
-   - Without token: omit header, expect 401
-   - With invalid token: And header token = 'invalid-token', expect 401
+2. AUTHENTICATION - protected endpoints: with valid token, without token (expect 401), with invalid token (expect 401)
 3. EVERY documented error response code
-4. MISSING REQUIRED FIELDS - omit each required field, expect 400
-5. INVALID DATA TYPES - send wrong types
-6. - DO NOT test boundary values like null, undefined, empty strings, decimal numbers, very long strings as IDs — these behave unpredictably per API
-- DO NOT test page=-1, limit=0, decimal page/limit — skip these entirely
-- Only test: happy path, 401 auth, 404 not found, 400 missing required fields
+4. MISSING REQUIRED FIELDS - omit each required field
+5. INVALID DATA - send wrong types or malformed data
 
-CRITICAL KARATE RULES - follow exactly:
+KARATE SYNTAX RULES:
 - Feature name: Feature: RetailShop ${tag} API
-- Background must set URL: * url '${CONFIG.baseUrl}'
-- Define test credentials in Background:
-  * def testEmail = '${CONFIG.testEmail}'
-  * def testPassword = '${CONFIG.testPassword}'
-- For auth token - do inline login in Background:
-  Given path '/auth/signin'
-  And request { "email": "#(testEmail)", "password": "#(testPassword)" }
-  When method POST
-  Then status 200
-  * def authToken = response.token
-  * def userId = response.user._id
-- Use token in header: And header token = authToken
+- Background: * url '${CONFIG.baseUrl}'
+- Login in Background: Given path '/auth/signin' / And request {"email":"${CONFIG.testEmail}","password":"${CONFIG.testPassword}"} / When method POST / Then status 200 / * def authToken = response.token
+- Token header: And header token = authToken
 - Path with variable: Given path '/products/' + productId
 - Query param: And param page = 1
-- Request body: And request { "field": "value" }
-- Method: When method POST
+- Request body: And request {"field":"value"}
 - Status check: Then status 200
-- Field match: And match response.data != null
 - Array check: And match response.data == '#[]'
+- String check: And match response.data[0].title == '#string'
 
-CRITICAL RULES FOR THIS ROUTE API - READ CAREFULLY:
-- NEVER hardcode fake MongoDB IDs like 507f1f77bcf86cd799439011 for happy path tests
-- To get a real product ID fetch it first:
-  Given path '/products'
-  And param limit = 1
-  When method GET
-  Then status 200
-  * def productId = response.data[0].id
-- To get a real category ID:
-  Given path '/categories'
-  When method GET
-  Then status 200
-  * def categoryId = response.data[0]._id
-- To get a real brand ID:
-  Given path '/brands'
-  When method GET
-  Then status 200
-  * def brandId = response.data[0]._id
-- userId comes from login: * def userId = response.user._id
-- Non-existent valid MongoDB ID (000000000000000000000000) returns 404 not 400
-- Invalid ObjectId format (invalid-id) returns 500 not 400
+CRITICAL RULES FOR THIS SPECIFIC API:
+- NEVER hardcode fake MongoDB IDs for happy path - always fetch real IDs first
+- To get real product ID: Given path '/products' / And param limit = 1 / When method GET / Then status 200 / * def productId = response.data[0].id
+- To get real category ID: Given path '/categories' / When method GET / Then status 200 / * def categoryId = response.data[0]._id
+- To get real brand ID: Given path '/brands' / When method GET / Then status 200 / * def brandId = response.data[0]._id
+- Non-existent valid MongoDB ID returns 404 not 400 - use Then status 404
+- Invalid ObjectId format returns 500 not 400 - use Then status 500
 - page=-1 returns status 500 not 400
 - limit=0 returns status 200 not 400
-- Decimal page or limit values return status 200 not 400
 - Wishlist add: POST /wishlist with body {"productId": productId}
-- Wishlist delete: DELETE /wishlist/:productId (NO /items in path ever)
+- Wishlist delete: DELETE /wishlist/:productId (NO /items in path)
 - Cart add: POST /cart with body {"productId": productId}
-- Cart update: PUT /cart/:itemId with body {"count": 2}
-- Orders get: GET /orders/user/:userId
+- Orders: GET /orders/user/:userId where userId comes from login response.user._id
 - Auth header is: And header token = authToken (NOT Authorization Bearer)
 
-MONGODB ID RULES:
-- All IDs are 24-character hex strings
-- Always wrap in single quotes: * def id = '507f1f77bcf86cd799439011'
-- NEVER use plain integers as IDs
-- For non-existent ID use: '000000000000000000000000'
-
-IMPORTANT:
+OUTPUT RULES:
 - Return ONLY valid Karate .feature file content
-- No markdown code blocks, no TypeScript, no JavaScript
+- No markdown, no TypeScript, no JavaScript
 - Start directly with: Feature: RetailShop ${tag} API
-- Each Scenario must be completely independent
-- Add comments explaining why each test exists`;
+- Each Scenario must be completely independent`;
 }
 
 async function generateKarateFeature(
-  client: Anthropic,
+  genAI: GoogleGenerativeAI,
   tag: string,
   endpoints: Endpoint[]
 ): Promise<string> {
   console.log(`\n Generating Karate feature: ${tag} (${endpoints.length} endpoints)`);
 
-  const message = await client.messages.create({
-    model: CONFIG.model,
-    max_tokens: CONFIG.maxTokens,
-    system: `You are a senior QA automation engineer expert in Karate Framework 1.4.0.
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash-latest',
+    systemInstruction: `You are a senior QA automation engineer expert in Karate Framework 1.4.0.
 You write production-quality Karate .feature files.
 Your output is ONLY valid Karate Gherkin syntax — no markdown, no TypeScript.
-You always cover: happy path, auth scenarios, every error code, missing fields, boundary values.
-CRITICAL: Never hardcode fake MongoDB IDs for happy path — always fetch real IDs from the API first.
-CRITICAL: Non-existent MongoDB IDs return 404, invalid format IDs return 500 for this API.
-CRITICAL: Use header token = authToken (not Authorization header) for this API.
-CRITICAL: Wishlist is POST /wishlist and DELETE /wishlist/:productId — no /items in path.
-Start output directly with: Feature:`,
-    messages: [
-      { role: 'user', content: buildKaratePrompt(tag, endpoints) }
-    ],
+You always cover: happy path, auth scenarios, error codes, missing fields.
+CRITICAL: Always fetch real IDs from the API instead of hardcoding fake MongoDB IDs.
+CRITICAL: Use header token = authToken (not Authorization header).
+Start output directly with: Feature:`
   });
 
-  const generated = message.content
-    .filter(b => b.type === 'text')
-    .map(b => (b as { type: 'text'; text: string }).text)
-    .join('\n');
+  const result = await model.generateContent(buildKaratePrompt(tag, endpoints));
+  const generated = result.response.text();
 
-  console.log(`   Tokens: ${message.usage.input_tokens} in, ${message.usage.output_tokens} out`);
-  console.log(`   Cost: ~$${((message.usage.input_tokens * 0.00025 + message.usage.output_tokens * 0.00125) / 1000).toFixed(4)}`);
-
+  console.log(`   Generated ${(generated.match(/Scenario:/g) || []).length} scenarios`);
   return generated;
 }
 
 function calculateCoverage(tag: string, endpoints: Endpoint[], code: string): CoverageData {
-  const allCodes = [...new Set(endpoints.flatMap(ep => Object.keys(ep.responses)))];
-  const coveredCodes = allCodes.filter(c => code.includes(c));
-  const authTested = code.includes('401');
   const scenariosGenerated = (code.match(/Scenario:/g) || []).length;
   const coverageScore = Math.min(100, Math.round((scenariosGenerated / (endpoints.length * 4)) * 100));
-  return { tag, totalEndpoints: endpoints.length, scenariosGenerated, responseCodesCovered: coveredCodes, authTested, coverageScore };
+  return { tag, totalEndpoints: endpoints.length, scenariosGenerated, coverageScore };
 }
 
 function saveFeatureFile(tag: string, content: string): void {
   fs.mkdirSync(CONFIG.outputDir, { recursive: true });
   const filename = `${tag.toLowerCase().replace(/\s+/g, '-')}.feature`;
   const filePath = path.join(CONFIG.outputDir, filename);
-  const fileContent = `# ${filename} - AUTO-GENERATED by karate-generator.ts
+  const fileContent = `# ${filename} - AUTO-GENERATED by karate-generator.ts (Gemini)
 # Generated: ${new Date().toISOString()}
 # Feature: ${tag}
 # API: ${CONFIG.baseUrl}
-# DO NOT EDIT - regenerate using: npx tsx ai-modules/module1-api/karate-generator.ts
 
 ${content}`;
   fs.writeFileSync(filePath, fileContent);
   console.log(`   Saved: ${filePath}`);
 }
 
-function generateReport(coverageData: CoverageData[], totalCost: number): void {
+function generateReport(coverageData: CoverageData[]): void {
   const totalEndpoints = coverageData.reduce((s, c) => s + c.totalEndpoints, 0);
   const totalScenarios = coverageData.reduce((s, c) => s + c.scenariosGenerated, 0);
   const avgCoverage = Math.round(coverageData.reduce((s, c) => s + c.coverageScore, 0) / coverageData.length);
 
   const rows = coverageData.map(c => `
-    <tr class="${c.coverageScore >= CONFIG.coverageThreshold ? 'pass' : 'fail'}">
+    <tr>
       <td><strong>${c.tag}</strong></td>
       <td>${c.totalEndpoints}</td>
       <td>${c.scenariosGenerated}</td>
-      <td>${c.authTested ? '✓' : '✗'}</td>
-      <td class="score">${c.coverageScore}%</td>
+      <td>${c.coverageScore}%</td>
     </tr>`).join('');
 
   const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Karate AI Generation Report - RetailShop API</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-    .header { background: #185FA5; color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; }
-    .header h1 { margin: 0; font-size: 26px; }
-    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-    .card { background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .card .number { font-size: 36px; font-weight: bold; color: #185FA5; }
-    .card .label { color: #666; font-size: 14px; margin-top: 5px; }
-    table { width: 100%; background: white; border-collapse: collapse; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    th { background: #185FA5; color: white; padding: 12px 16px; text-align: left; }
-    td { padding: 12px 16px; border-bottom: 1px solid #eee; }
-    tr.pass { border-left: 4px solid #0F6E56; }
-    tr.fail { border-left: 4px solid #dc3545; }
-    .score { font-weight: bold; font-size: 16px; }
-    tr.pass .score { color: #0F6E56; }
-    tr.fail .score { color: #dc3545; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Karate AI Test Generation Report</h1>
-    <p>RetailShop API — ${CONFIG.baseUrl}</p>
-    <p>Generated: ${new Date().toLocaleString()}</p>
-  </div>
-  <div class="summary">
-    <div class="card"><div class="number">${totalEndpoints}</div><div class="label">Total Endpoints</div></div>
-    <div class="card"><div class="number">${totalScenarios}</div><div class="label">Scenarios Generated</div></div>
-    <div class="card"><div class="number">${avgCoverage}%</div><div class="label">Avg Coverage</div></div>
-    <div class="card"><div class="number">$${totalCost.toFixed(4)}</div><div class="label">Total AI Cost</div></div>
-  </div>
-  <table>
-    <thead>
-      <tr><th>Feature Area</th><th>Endpoints</th><th>Scenarios</th><th>Auth Tested</th><th>Coverage</th></tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-</body>
-</html>`;
+<html><head><meta charset="UTF-8"><title>Karate Generation Report</title>
+<style>body{font-family:Arial;margin:40px;} table{width:100%;border-collapse:collapse;} th{background:#185FA5;color:white;padding:10px;} td{padding:10px;border-bottom:1px solid #eee;}</style>
+</head><body>
+<h1>Karate AI Test Generation Report (Gemini FREE)</h1>
+<p>API: ${CONFIG.baseUrl} | Generated: ${new Date().toLocaleString()}</p>
+<p><strong>Total Endpoints: ${totalEndpoints} | Scenarios: ${totalScenarios} | Avg Coverage: ${avgCoverage}% | Cost: $0.00 (FREE)</strong></p>
+<table><thead><tr><th>Feature</th><th>Endpoints</th><th>Scenarios</th><th>Coverage</th></tr></thead>
+<tbody>${rows}</tbody></table>
+</body></html>`;
 
   const reportPath = path.join(CONFIG.outputDir, 'coverage-report.html');
   fs.writeFileSync(reportPath, html);
@@ -353,13 +261,18 @@ function generateReport(coverageData: CoverageData[], totalCost: number): void {
 
 async function main() {
   console.log('═══════════════════════════════════════════════════');
-  console.log('  Karate AI Feature File Generator');
-  console.log('  Reads retail-api.json → Claude API → .feature files');
+  console.log('  Karate AI Feature File Generator - GEMINI FREE');
   console.log(`  Target API: ${CONFIG.baseUrl}`);
   console.log('═══════════════════════════════════════════════════');
 
-  const client = new Anthropic();
-  let totalCost = 0;
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error('ERROR: GEMINI_API_KEY environment variable not set');
+    console.error('Set it with: set GEMINI_API_KEY=your_key_here');
+    process.exit(1);
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
   const coverageResults: CoverageData[] = [];
 
   const endpoints = parseSpec(CONFIG.specFile);
@@ -369,28 +282,26 @@ async function main() {
   console.log('─────────────────────────────────────────────────');
 
   for (const [tag, featureEndpoints] of groups) {
-    const generated = await generateKarateFeature(client, tag, featureEndpoints);
+    const generated = await generateKarateFeature(genAI, tag, featureEndpoints);
     const coverage = calculateCoverage(tag, featureEndpoints, generated);
     coverageResults.push(coverage);
-    totalCost += parseFloat(((featureEndpoints.length * 325 * 0.00025 + 4000 * 0.00125) / 1000).toFixed(4));
     saveFeatureFile(tag, generated);
     console.log(`   Scenarios: ${coverage.scenariosGenerated} | Coverage: ${coverage.coverageScore}%`);
   }
 
-  generateReport(coverageResults, totalCost);
+  generateReport(coverageResults);
 
   const totalScenarios = coverageResults.reduce((s, c) => s + c.scenariosGenerated, 0);
   const avgCoverage = Math.round(coverageResults.reduce((s, c) => s + c.coverageScore, 0) / coverageResults.length);
 
   console.log('\n═══════════════════════════════════════════════════');
-  console.log('  GENERATION COMPLETE');
+  console.log('  GENERATION COMPLETE - $0.00 COST (FREE!)');
   console.log('═══════════════════════════════════════════════════');
   console.log(`  Feature areas:     ${groups.size}`);
   console.log(`  Total endpoints:   ${endpoints.length}`);
   console.log(`  Scenarios created: ${totalScenarios}`);
   console.log(`  Avg coverage:      ${avgCoverage}%`);
-  console.log(`  Total cost:        $${totalCost.toFixed(4)}`);
-  console.log(`  Output:            ${CONFIG.outputDir}`);
+  console.log(`  Cost:              $0.00 (Gemini Free Tier)`);
   console.log('\n  Next step: cd karate-retail && mvn test');
 }
 
