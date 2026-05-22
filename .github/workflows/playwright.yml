@@ -1,77 +1,87 @@
-# playwright.yml - GitHub Actions CI/CD workflow
+# # playwright.yml - GitHub Actions CI/CD workflow
 #
-# WHAT IS THIS FILE?
-# This is a workflow file. GitHub reads it and automatically runs your
-# Playwright tests in the cloud every time you push code.
-# No manual test runs needed - tests happen automatically.
-#
-# WHAT IS CI/CD?
 # CI = Continuous Integration - every code push triggers automated tests
 # CD = Continuous Delivery  - if tests pass, code can be deployed
-# Together they catch bugs before they reach production
-#
-# WHERE DOES THIS RUN?
-# NOT on your laptop. GitHub spins up a fresh Linux computer (ubuntu-latest)
-# in the cloud, installs everything, runs your tests, and reports results.
-# Your laptop can be off - it runs in GitHub's servers.
+# Runs on GitHub servers, not your laptop
 
 name: Playwright Tests - QE Automation
 
-# TRIGGERS - when does this workflow run?
 on:
-  # Run when code is pushed to main or master branch
   push:
     branches: [ main, master ]
-  # Run when a Pull Request is opened against main or master
-  # This is how teams catch bugs BEFORE merging code
   pull_request:
     branches: [ main, master ]
-  # Allow manually triggering from GitHub UI without pushing code
   workflow_dispatch:
 
 jobs:
   test:
-    # Kill the job if it runs longer than 60 minutes
     timeout-minutes: 60
-
-    # GitHub provides Ubuntu Linux for free
     runs-on: ubuntu-latest
-
-    # Fix Node.js 20 deprecation warning - forces Node.js 24
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-      # STEP 1 - Download your code onto the GitHub runner machine
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # STEP 2 - Install Node.js on the runner machine
-      # lts/* = latest Long Term Support version
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      # STEP 3 - Install npm packages from package-lock.json
-      # npm ci = clean install, faster and reproducible in CI
       - name: Install dependencies
         run: npm ci
 
-      # STEP 4 - Install Playwright browsers + Linux system dependencies
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      # STEP 5 - Run all tests, same as running on your laptop
       - name: Run Playwright tests
         run: npx playwright test
 
-      # STEP 6 - Upload HTML report so you can download and view it
-      # runs even if tests fail - !cancelled() means always upload
-      - name: Upload test report
+      - name: Upload Playwright HTML report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+
+      - name: Upload Allure results
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: allure-results
+          path: allure-results/
+          retention-days: 30
+
+  publish-report:
+    needs: test
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Allure results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: Generate Allure report
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+          gh_pages: gh-pages
+          allure_history: allure-history
+
+      - name: Publish Allure report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
