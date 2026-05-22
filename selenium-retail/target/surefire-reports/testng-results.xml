@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testng-results ignored="0" total="6" passed="6" failed="0" skipped="0">
+  <reporter-output>
+  </reporter-output>
+  <suite started-at="2026-05-22T09:37:26 EDT" name="Selenium Retail Suite" finished-at="2026-05-22T09:37:48 EDT" duration-ms="22282">
+    <groups>
+    </groups>
+    <test started-at="2026-05-22T09:37:26 EDT" name="Login Tests" finished-at="2026-05-22T09:37:48 EDT" duration-ms="22282">
+      <class name="com.qelead.tests.LoginTest">
+        <test-method is-config="true" signature="setUp()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:26 EDT" name="setUp" finished-at="2026-05-22T09:37:27 EDT" duration-ms="1413" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- setUp -->
+        <test-method signature="testAddToCart()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:27 EDT" name="testAddToCart" finished-at="2026-05-22T09:37:29 EDT" duration-ms="1524" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- testAddToCart -->
+        <test-method is-config="true" signature="tearDown()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:29 EDT" name="tearDown" finished-at="2026-05-22T09:37:29 EDT" duration-ms="320" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- tearDown -->
+        <test-method is-config="true" signature="setUp()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:29 EDT" name="setUp" finished-at="2026-05-22T09:37:31 EDT" duration-ms="1723" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- setUp -->
+        <test-method signature="testEmptyUsername()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:31 EDT" name="testEmptyUsername" finished-at="2026-05-22T09:37:33 EDT" duration-ms="2481" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- testEmptyUsername -->
+        <test-method is-config="true" signature="tearDown()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:33 EDT" name="tearDown" finished-at="2026-05-22T09:37:34 EDT" duration-ms="416" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- tearDown -->
+        <test-method is-config="true" signature="setUp()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:34 EDT" name="setUp" finished-at="2026-05-22T09:37:35 EDT" duration-ms="1611" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- setUp -->
+        <test-method signature="testInvalidPassword()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:36 EDT" name="testInvalidPassword" finished-at="2026-05-22T09:37:37 EDT" duration-ms="1965" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- testInvalidPassword -->
+        <test-method is-config="true" signature="tearDown()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:37 EDT" name="tearDown" finished-at="2026-05-22T09:37:38 EDT" duration-ms="426" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- tearDown -->
+        <test-method is-config="true" signature="setUp()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:38 EDT" name="setUp" finished-at="2026-05-22T09:37:39 EDT" duration-ms="1058" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- setUp -->
+        <test-method signature="testInventoryItemCount()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:39 EDT" name="testInventoryItemCount" finished-at="2026-05-22T09:37:41 EDT" duration-ms="1849" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- testInventoryItemCount -->
+        <test-method is-config="true" signature="tearDown()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:41 EDT" name="tearDown" finished-at="2026-05-22T09:37:41 EDT" duration-ms="387" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- tearDown -->
+        <test-method is-config="true" signature="setUp()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:41 EDT" name="setUp" finished-at="2026-05-22T09:37:42 EDT" duration-ms="1051" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- setUp -->
+        <test-method signature="testLockedOutUser()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:42 EDT" name="testLockedOutUser" finished-at="2026-05-22T09:37:44 EDT" duration-ms="1782" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- testLockedOutUser -->
+        <test-method is-config="true" signature="tearDown()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:44 EDT" name="tearDown" finished-at="2026-05-22T09:37:44 EDT" duration-ms="352" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- tearDown -->
+        <test-method is-config="true" signature="setUp()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:44 EDT" name="setUp" finished-at="2026-05-22T09:37:46 EDT" duration-ms="1137" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- setUp -->
+        <test-method signature="testValidLogin()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:46 EDT" name="testValidLogin" finished-at="2026-05-22T09:37:48 EDT" duration-ms="2148" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- testValidLogin -->
+        <test-method is-config="true" signature="tearDown()[pri:0, instance:com.qelead.tests.LoginTest@548d708a]" started-at="2026-05-22T09:37:48 EDT" name="tearDown" finished-at="2026-05-22T09:37:48 EDT" duration-ms="371" status="PASS">
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- tearDown -->
+      </class> <!-- com.qelead.tests.LoginTest -->
+    </test> <!-- Login Tests -->
+  </suite> <!-- Selenium Retail Suite -->
+</testng-results>

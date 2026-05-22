@@ -1,0 +1,4 @@
+com\qelead\base\BaseTest.class
+com\qelead\pages\LoginPage.class
+com\qelead\pages\InventoryPage.class
+com\qelead\tests\LoginTest.class
