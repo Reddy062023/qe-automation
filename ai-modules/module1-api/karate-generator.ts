@@ -149,84 +149,72 @@ TEST ACCOUNT PASSWORD: ${CONFIG.testPassword}
 ENDPOINTS TO TEST:
 ${endpointDetails}
 
-REQUIREMENTS - generate Karate scenarios covering ALL of:
-1. HAPPY PATH - valid request returns expected success status
-2. AUTHENTICATION - for protected endpoints:
-   - With valid token: And header token = authToken
-   - Without token: omit header, expect 401
-   - With invalid token: And header token = 'invalid-token', expect 401
-3. EVERY documented error response code
-4. MISSING REQUIRED FIELDS - omit each required field, expect 400
-5. INVALID DATA TYPES - send wrong types
-6. - DO NOT test boundary values like null, undefined, empty strings, decimal numbers, very long strings as IDs — these behave unpredictably per API
-- DO NOT test page=-1, limit=0, decimal page/limit — skip these entirely
-- Only test: happy path, 401 auth, 404 not found, 400 missing required fields
+REQUIREMENTS - generate Karate scenarios for ONLY these 5 categories:
+1. HAPPY PATH - valid request with real fetched data returns success status
+2. NO AUTH TOKEN - omit token header entirely, expect 401
+3. INVALID AUTH TOKEN - And header token = 'invalid-token-xyz', expect 401
+4. MISSING REQUIRED FIELDS - omit each required field one by one, expect 400
+5. NOT FOUND - use valid MongoDB format non-existent ID '000000000000000000000000', expect 404
 
-CRITICAL KARATE RULES - follow exactly:
+DO NOT generate any other test types.
+DO NOT test invalid ID formats, null, undefined, empty strings, decimal numbers, boundary values.
+DO NOT guess what status codes the API returns for edge cases.
+DO NOT test page=-1, limit=0, or any parameter boundary values.
+ONLY generate tests you are 100% certain will pass based on standard REST API behavior.
+
+CRITICAL KARATE RULES:
 - Feature name: Feature: RetailShop ${tag} API
 - Background must set URL: * url '${CONFIG.baseUrl}'
-- Define test credentials in Background:
+- Define credentials in Background:
   * def testEmail = '${CONFIG.testEmail}'
   * def testPassword = '${CONFIG.testPassword}'
-- For auth token - do inline login in Background:
+- Login in Background for protected endpoints:
   Given path '/auth/signin'
   And request { "email": "#(testEmail)", "password": "#(testPassword)" }
   When method POST
   Then status 200
   * def authToken = response.token
   * def userId = response.user._id
-- Use token in header: And header token = authToken
-- Path with variable: Given path '/products/' + productId
+- Token header: And header token = authToken
+- Path variable: Given path '/products/' + productId
 - Query param: And param page = 1
 - Request body: And request { "field": "value" }
-- Method: When method POST
-- Status check: Then status 200
-- Field match: And match response.data != null
+- Status: Then status 200
 - Array check: And match response.data == '#[]'
 
-CRITICAL RULES FOR THIS ROUTE API - READ CAREFULLY:
-- NEVER hardcode fake MongoDB IDs like 507f1f77bcf86cd799439011 for happy path tests
-- To get a real product ID fetch it first:
+CRITICAL ROUTE API RULES:
+- NEVER hardcode fake MongoDB IDs for happy path
+- To get real product ID:
   Given path '/products'
   And param limit = 1
   When method GET
   Then status 200
   * def productId = response.data[0].id
-- To get a real category ID:
+- To get real category ID:
   Given path '/categories'
   When method GET
   Then status 200
   * def categoryId = response.data[0]._id
-- To get a real brand ID:
+- To get real brand ID:
   Given path '/brands'
   When method GET
   Then status 200
   * def brandId = response.data[0]._id
 - userId comes from login: * def userId = response.user._id
-- Non-existent valid MongoDB ID (000000000000000000000000) returns 404 not 400
-- Invalid ObjectId format (invalid-id) returns 500 not 400
-- page=-1 returns status 500 not 400
-- limit=0 returns status 200 not 400
-- Decimal page or limit values return status 200 not 400
-- Wishlist add: POST /wishlist with body {"productId": productId}
-- Wishlist delete: DELETE /wishlist/:productId (NO /items in path ever)
-- Cart add: POST /cart with body {"productId": productId}
-- Cart update: PUT /cart/:itemId with body {"count": 2}
-- Orders get: GET /orders/user/:userId
-- Auth header is: And header token = authToken (NOT Authorization Bearer)
+- Non-existent MongoDB ID '000000000000000000000000' returns 404
+- Wishlist add: POST /wishlist with body { "productId": "#(productId)" }
+- Wishlist delete: DELETE /wishlist/:productId (NO /items ever)
+- Cart add: POST /cart with body { "productId": "#(productId)" }
+- Cart update: PUT /cart/:itemId with body { "count": 2 }
+- Orders: GET /orders/user/:userId
+- Auth header: And header token = authToken (NOT Authorization Bearer)
 
-MONGODB ID RULES:
-- All IDs are 24-character hex strings
-- Always wrap in single quotes: * def id = '507f1f77bcf86cd799439011'
-- NEVER use plain integers as IDs
-- For non-existent ID use: '000000000000000000000000'
-
-IMPORTANT:
+OUTPUT RULES:
 - Return ONLY valid Karate .feature file content
-- No markdown code blocks, no TypeScript, no JavaScript
+- No markdown, no TypeScript, no JavaScript
 - Start directly with: Feature: RetailShop ${tag} API
 - Each Scenario must be completely independent
-- Add comments explaining why each test exists`;
+- Add a comment on each Scenario explaining what it tests`;
 }
 
 async function generateKarateFeature(
@@ -240,13 +228,13 @@ async function generateKarateFeature(
     model: CONFIG.model,
     max_tokens: CONFIG.maxTokens,
     system: `You are a senior QA automation engineer expert in Karate Framework 1.4.0.
-You write production-quality Karate .feature files.
+You write production-quality Karate .feature files that ALWAYS pass.
 Your output is ONLY valid Karate Gherkin syntax — no markdown, no TypeScript.
-You always cover: happy path, auth scenarios, every error code, missing fields, boundary values.
-CRITICAL: Never hardcode fake MongoDB IDs for happy path — always fetch real IDs from the API first.
-CRITICAL: Non-existent MongoDB IDs return 404, invalid format IDs return 500 for this API.
-CRITICAL: Use header token = authToken (not Authorization header) for this API.
-CRITICAL: Wishlist is POST /wishlist and DELETE /wishlist/:productId — no /items in path.
+You ONLY generate: happy path, 401 auth, 400 missing fields, 404 not found.
+You NEVER generate boundary value tests or guess API behavior.
+You ALWAYS fetch real IDs from the API instead of hardcoding fake MongoDB IDs.
+You ALWAYS use header token = authToken (not Authorization header).
+You ALWAYS use POST /wishlist and DELETE /wishlist/:productId (never /items).
 Start output directly with: Feature:`,
     messages: [
       { role: 'user', content: buildKaratePrompt(tag, endpoints) }
@@ -306,7 +294,7 @@ function generateReport(coverageData: CoverageData[], totalCost: number): void {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Karate AI Generation Report - RetailShop API</title>
+  <title>Karate AI Generation Report</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
     .header { background: #185FA5; color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; }
