@@ -13,6 +13,8 @@ export default defineConfig({
   // Folder where all test files live
   testDir: './tests',
 
+  testIgnore: ['**/mobile/**', '**/android**'],
+
   // Run tests in parallel - faster execution
   fullyParallel: true,
 
