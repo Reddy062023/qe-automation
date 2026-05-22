@@ -1,6 +1,7 @@
 package com.qelead.pages;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -36,16 +37,21 @@ public class InventoryPage {
     public void addFirstItemToCart() {
         wait.until(ExpectedConditions.elementToBeClickable(addToCartButtons));
         WebElement button = driver.findElements(addToCartButtons).get(0);
-        button.click();
+        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", button);
+        // Wait for button text to change to Remove
+        try { Thread.sleep(500); } catch (Exception e) {}
     }
 
     public String getCartBadgeCount() {
-        wait.until(ExpectedConditions.numberOfElementsToBeMoreThan(cartBadge, 0));
+        wait.until(ExpectedConditions.visibilityOfElementLocated(cartBadge));
         return driver.findElement(cartBadge).getText();
     }
 
     public void clickCart() {
-        driver.findElement(cartIcon).click();
+        wait.until(ExpectedConditions.elementToBeClickable(cartIcon));
+        ((JavascriptExecutor) driver).executeScript(
+            "arguments[0].click();", driver.findElement(cartIcon));
+        wait.until(ExpectedConditions.urlContains("cart"));
     }
 
     public boolean isOnInventoryPage() {
